@@ -1,0 +1,5 @@
+{
+  "reviewEnabled": true,
+  "nudgeInterval": 50,
+  "nudgeToolCalls": 100
+}

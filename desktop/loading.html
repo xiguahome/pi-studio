@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>pi-studio</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a1a;
+      color: #e5e5e5;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      user-select: none;
+    }
+    .center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      width: min(460px, calc(100vw - 64px));
+    }
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    #status {
+      margin: 0;
+      font-size: 13px;
+      color: #9a9a9a;
+      max-width: 420px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    #status.error {
+      color: #f08080;
+    }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 3px solid #333;
+      border-top-color: #7aa2f7;
+      animation: spin 0.9s linear infinite;
+    }
+    .spinner.hidden {
+      display: none;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* first-run install progress */
+    #progress {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
+    #progress.visible {
+      display: flex;
+    }
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: #2d2d2d;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #6b9bf2, #7aa2f7);
+      transition: width 0.25s ease;
+    }
+    /* indeterminate mode: animated stripes while percent is unknown */
+    .progress-fill.indeterminate {
+      width: 40% !important;
+      animation: slide 1.2s ease-in-out infinite;
+    }
+    @keyframes slide {
+      0%   { transform: translateX(-120%); }
+      100% { transform: translateX(320%); }
+    }
+    #progress-label {
+      margin: 0;
+      font-size: 12px;
+      color: #9a9a9a;
+      text-align: center;
+      min-height: 16px;
+    }
+    #progress-pct {
+      margin: 0;
+      font-size: 12px;
+      color: #6b9bf2;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+    }
+    #log {
+      display: none;
+      width: 100%;
+      max-height: 120px;
+      overflow-y: auto;
+      margin: 0;
+      padding: 8px 10px;
+      box-sizing: border-box;
+      background: #141414;
+      border: 1px solid #2d2d2d;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.55;
+      color: #8a8a8a;
+      text-align: left;
+      user-select: text;
+    }
+    #log.visible {
+      display: block;
+    }
+    #log .warn {
+      color: #d8b86a;
+    }
+    #log .error {
+      color: #f08080;
+    }
+  </style>
+</head>
+<body>
+  <div class="center">
+    <div class="spinner" id="spinner"></div>
+    <h1>pi-studio</h1>
+    <p id="status">Starting…</p>
+    <div id="progress">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <p id="progress-pct"></p>
+      <p id="progress-label"></p>
+    </div>
+    <pre id="log"></pre>
+  </div>
+  <script>
+    // Driving API used by desktop/main.js via webContents.executeJavaScript.
+    var MAX_LOG_LINES = 8;
+
+    window.setLoadingStatus = function (text, isError) {
+      var status = document.getElementById("status");
+      var spinner = document.getElementById("spinner");
+      status.textContent = text;
+      status.classList.toggle("error", Boolean(isError));
+      spinner.classList.toggle("hidden", Boolean(isError));
+    };
+
+    window.setLoadingProgress = function (percent, label) {
+      var container = document.getElementById("progress");
+      var fill = document.getElementById("progress-fill");
+      var pctEl = document.getElementById("progress-pct");
+      var labelEl = document.getElementById("progress-label");
+      container.classList.add("visible");
+      if (percent == null || Number.isNaN(percent)) {
+        fill.classList.add("indeterminate");
+        pctEl.textContent = "";
+      } else {
+        fill.classList.remove("indeterminate");
+        fill.style.width = Math.max(0, Math.min(100, percent)) + "%";
+        pctEl.textContent = Math.round(percent) + "%";
+      }
+      labelEl.textContent = label || "";
+    };
+
+    window.setLoadingLog = function (line) {
+      window.setLoadingLogs([line]);
+    };
+
+    window.setLoadingLogs = function (lines) {
+      var log = document.getElementById("log");
+      if (!Array.isArray(lines) || !lines.length) return;
+      log.classList.add("visible");
+      var fragment = document.createDocumentFragment();
+      for (var i = 0; i < lines.length; i++) {
+        var trimmed = String(lines[i]).slice(0, 400);
+        var div = document.createElement("div");
+        var cls = "line";
+        if (/npm (ERR|error)[! ]/.test(trimmed)) cls += " error";
+        else if (/npm warn/.test(trimmed)) cls += " warn";
+        div.className = cls;
+        div.textContent = trimmed;
+        fragment.appendChild(div);
+      }
+      log.appendChild(fragment);
+      while (log.childElementCount > MAX_LOG_LINES) log.removeChild(log.firstChild);
+      log.scrollTop = log.scrollHeight;
+    };
+  </script>
+</body>
+</html>

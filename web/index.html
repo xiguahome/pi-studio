@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pi Studio — pi coding agent 的跨平台桌面端</title>
+<meta name="description" content="Pi Studio 是 pi coding agent 的跨平台桌面端，开箱即用，无需配置命令行。内置会话浏览、计划目标、模型配置、Skills 管理与项目文件预览。" />
+<meta name="theme-color" content="#2563eb" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f6f8fc;
+    --panel: rgba(255, 255, 255, 0.72);
+    --panel-solid: #ffffff;
+    --border: rgba(15, 23, 42, 0.08);
+    --border-strong: rgba(15, 23, 42, 0.14);
+    --text: #0f172a;
+    --muted: #64748b;
+    --dim: #94a3b8;
+    --accent: #2563eb;
+    --accent-2: #7c3aed;
+    --accent-soft: rgba(37, 99, 235, 0.10);
+    --on-accent: #ffffff;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 10px 30px -12px rgba(15, 23, 42, 0.18);
+    --shadow-lg: 0 30px 60px -20px rgba(37, 99, 235, 0.28);
+    --radius: 18px;
+    --maxw: 1120px;
+  }
+  [data-theme="dark"] {
+    --bg: #070b16;
+    --bg-soft: #0b1120;
+    --panel: rgba(18, 24, 41, 0.66);
+    --panel-solid: #0e1525;
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --text: #eef2ff;
+    --muted: #9aa7bd;
+    --dim: #64748b;
+    --accent: #60a5fa;
+    --accent-2: #a78bfa;
+    --accent-soft: rgba(96, 165, 250, 0.14);
+    --on-accent: #06101f;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 14px 40px -14px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 30px 70px -22px rgba(96, 165, 250, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--accent-soft); }
+
+  .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- NAV ---------- */
+  header.nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    border-bottom: 1px solid transparent;
+    transition: border-color .25s ease, background .25s ease;
+  }
+  header.nav.scrolled { border-bottom-color: var(--border); }
+  .nav-inner { display: flex; align-items: center; gap: 18px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .brand .logo {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 19px;
+    box-shadow: var(--shadow-sm);
+  }
+  [data-theme="dark"] .brand .logo { color: #06101f; }
+  .nav-links { display: flex; gap: 4px; margin-left: 8px; }
+  .nav-links a {
+    padding: 8px 13px; border-radius: 9px; color: var(--muted); font-size: 14px; font-weight: 500;
+    transition: color .18s ease, background .18s ease;
+  }
+  .nav-links a:hover { color: var(--text); background: var(--accent-soft); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--panel-solid); color: var(--muted); cursor: pointer; display: grid; place-items: center;
+    transition: color .18s, border-color .18s, background .18s;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--border-strong); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px;
+    padding: 10px 18px; border-radius: 11px; cursor: pointer; border: 1px solid transparent;
+    transition: transform .15s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease;
+    white-space: nowrap;
+  }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--on-accent); box-shadow: var(--shadow-md); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .btn-ghost { background: var(--panel-solid); border-color: var(--border); color: var(--text); }
+  .btn-ghost:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+
+  /* ---------- HERO ---------- */
+  .hero { position: relative; padding: 96px 0 70px; overflow: hidden; }
+  .orb { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .55; pointer-events: none; z-index: 0; }
+  .orb.a { width: 480px; height: 480px; background: radial-gradient(circle at 30% 30%, #3b82f6, transparent 70%); top: -160px; left: -120px; animation: float1 16s ease-in-out infinite; }
+  .orb.b { width: 420px; height: 420px; background: radial-gradient(circle at 70% 30%, #8b5cf6, transparent 70%); top: -80px; right: -100px; animation: float2 19s ease-in-out infinite; }
+  .orb.c { width: 360px; height: 360px; background: radial-gradient(circle at 50% 50%, #06b6d4, transparent 70%); bottom: -180px; left: 40%; opacity: .35; animation: float1 22s ease-in-out infinite; }
+  @keyframes float1 { 0%,100%{ transform: translate(0,0) } 50%{ transform: translate(40px,30px) } }
+  @keyframes float2 { 0%,100%{ transform: translate(0,0) } 50%{ transform: translate(-36px,26px) } }
+  .grid-overlay {
+    position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .5;
+    background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 75%);
+  }
+  .hero-inner { position: relative; z-index: 1; text-align: center; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--panel); font-size: 13px; color: var(--muted);
+    box-shadow: var(--shadow-sm); backdrop-filter: blur(8px);
+  }
+  .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,.18); }
+  .hero h1 {
+    font-size: clamp(40px, 7vw, 76px); line-height: 1.02; letter-spacing: -0.03em; margin: 22px 0 0; font-weight: 800;
+    background: linear-gradient(120deg, var(--text) 30%, var(--accent) 70%, var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero .sub { font-size: clamp(17px, 2.4vw, 21px); color: var(--muted); margin: 22px auto 0; max-width: 660px; }
+  .hero .cta { display: flex; gap: 14px; justify-content: center; margin-top: 36px; flex-wrap: wrap; }
+  .hero .cta .btn { padding: 14px 26px; font-size: 15px; border-radius: 13px; }
+  .stat-row { display: flex; gap: 36px; justify-content: center; margin-top: 56px; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat .n { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; background: linear-gradient(120deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stat .l { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  /* ---------- SECTION ---------- */
+  section.block { padding: 78px 0; position: relative; }
+  .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+  .sec-title { font-size: clamp(28px, 4vw, 42px); letter-spacing: -0.02em; margin: 12px 0 0; font-weight: 800; }
+  .sec-sub { color: var(--muted); margin: 14px 0 0; max-width: 640px; font-size: 16px; }
+  .center { text-align: center; }
+  .center .sec-sub { margin-left: auto; margin-right: auto; }
+
+  /* intro card */
+  .intro-card {
+    margin-top: 40px; border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--panel); backdrop-filter: blur(10px); padding: 36px; box-shadow: var(--shadow-sm);
+    display: grid; grid-template-columns: 1.3fr 1fr; gap: 34px; align-items: center;
+  }
+  .intro-card p { color: var(--muted); margin: 0 0 14px; font-size: 15.5px; }
+  .intro-card p strong { color: var(--text); font-weight: 600; }
+  .tech-stack { display: flex; flex-direction: column; gap: 12px; }
+  .tech { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border: 1px solid var(--border); border-radius: 13px; background: var(--panel-solid); font-size: 14px; }
+  .tech .tk { width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; flex: 0 0 30px; }
+  .tech b { font-weight: 600; }
+  .tech span { color: var(--muted); font-size: 13px; }
+
+  /* features */
+  .feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; margin-top: 44px; }
+  .feat {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 26px; background: var(--panel);
+    transition: transform .2s ease, box-shadow .25s ease, border-color .25s ease; position: relative; overflow: hidden;
+  }
+  .feat:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+  .feat .ic { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg, var(--accent-soft), transparent); border: 1px solid var(--border); color: var(--accent); display: grid; place-items: center; margin-bottom: 16px; }
+  .feat h3 { margin: 0 0 7px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+  .feat p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  /* version */
+  .ver-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 22px; margin-top: 44px; }
+  .ver-card, .notes-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); padding: 28px; box-shadow: var(--shadow-sm); }
+  .ver-head { display: flex; align-items: baseline; gap: 12px; }
+  .ver-num { font-size: 40px; font-weight: 800; letter-spacing: -0.03em; background: linear-gradient(120deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .ver-date { color: var(--muted); font-size: 14px; }
+  .ver-meta { margin-top: 20px; display: flex; flex-direction: column; gap: 1px; border-top: 1px solid var(--border); }
+  .ver-meta .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .ver-meta .row:last-child { border-bottom: 0; }
+  .ver-meta .k { color: var(--muted); }
+  .ver-meta .v { font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .notes-card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .notes-card h4 { margin: 0 0 14px; font-size: 15px; font-weight: 700; flex: 0 0 auto; }
+  .notes { color: var(--muted); font-size: 14.5px; }
+  .notes h3 { color: var(--text); font-size: 16px; margin: 0 0 10px; font-weight: 700; }
+  .notes ul { margin: 0; padding-left: 20px; }
+  .notes li { margin: 6px 0; }
+  /* release notes: the card height is pinned to the left version card; the
+     notes area itself scrolls vertically when the changelog overflows. */
+  #relNotes { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 10px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  #relNotes::-webkit-scrollbar { width: 6px; }
+  #relNotes::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* download */
+  .dl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 44px; }
+  .dl {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); padding: 28px 24px;
+    display: flex; flex-direction: column; gap: 14px; position: relative; overflow: hidden;
+    transition: transform .2s ease, box-shadow .25s ease, border-color .25s ease;
+  }
+  .dl:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+  .dl .top { display: flex; align-items: center; gap: 14px; }
+  .dl .plat-ic { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; color: #fff; flex: 0 0 52px; }
+  .dl.win .plat-ic { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+  .dl.mac .plat-ic { background: linear-gradient(135deg, #475569, #1e293b); }
+  .dl.linux .plat-ic { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .dl .plat-name { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  .dl .plat-tag { font-size: 12.5px; color: var(--muted); }
+  .dl .arch-pick { display: flex; gap: 8px; }
+  .dl .arch-pick button {
+    flex: 1; padding: 9px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-solid);
+    color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .18s; font-family: inherit;
+  }
+  .dl .arch-pick button.active { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+  .dl .dl-btn {
+    margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 9px;
+    padding: 14px; border-radius: 13px; font-weight: 700; font-size: 15px; cursor: pointer; border: 0;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--on-accent);
+    transition: transform .15s, box-shadow .2s; box-shadow: var(--shadow-md); text-align: center;
+  }
+  .dl .dl-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .dl .dl-btn.disabled { background: var(--bg-soft); color: var(--dim); box-shadow: none; cursor: not-allowed; }
+  .dl .sz { font-size: 12.5px; color: var(--muted); text-align: center; }
+  .dl.soon .plat-ic { background: linear-gradient(135deg, #94a3b8, #64748b); }
+  .dl .soon-badge { position: absolute; top: 16px; right: 16px; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+
+  /* footer */
+  footer { border-top: 1px solid var(--border); padding: 40px 0 56px; color: var(--muted); }
+  .foot-inner { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; align-items: center; }
+  .foot-links { display: flex; gap: 22px; flex-wrap: wrap; font-size: 14px; }
+  .foot-links a:hover { color: var(--text); }
+  .foot-copy { font-size: 13px; }
+
+  /* reveal */
+  .reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1); }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (max-width: 880px) {
+    .nav-links { display: none; }
+    .intro-card { grid-template-columns: 1fr; }
+    .ver-grid { grid-template-columns: 1fr; }
+    .dl-grid { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .orb { animation: none; }
+    .reveal { transition: none; opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="Pi Studio 首页">
+      <span class="logo" aria-hidden="true">π</span>
+      <span>Pi Studio</span>
+    </a>
+    <nav class="nav-links" aria-label="主导航">
+      <a href="#intro">简介</a>
+      <a href="#features">功能亮点</a>
+      <a href="#version">版本信息</a>
+      <a href="#download">下载</a>
+    </nav>
+    <div class="nav-right">
+      <button class="icon-btn" id="themeBtn" aria-label="切换主题" title="切换深色 / 浅色">
+        <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <a class="btn btn-primary" href="#download">下载</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="orb a" aria-hidden="true"></div>
+    <div class="orb b" aria-hidden="true"></div>
+    <div class="orb c" aria-hidden="true"></div>
+    <div class="grid-overlay" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <span class="badge reveal"><span class="dot"></span> 最新稳定版 <b id="heroVer">v1.0.0</b> 已发布</span>
+      <h1 class="reveal">Pi Studio</h1>
+      <p class="sub reveal">pi coding agent 的跨平台桌面端 —— 开箱即用，无需配置命令行。<br/>把强大的 AI 编码代理，装进一个精致的桌面应用。</p>
+      <div class="cta reveal">
+        <a class="btn btn-primary" href="#download">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+          立即下载
+        </a>
+        <a class="btn btn-ghost" href="https://codeup.aliyun.com/ibiall/global/pi-studio.git" target="_blank" rel="noopener">在 GitHub 查看</a>
+      </div>
+      <div class="stat-row reveal">
+        <div class="stat"><div class="n">3</div><div class="l">平台支持（Win / macOS / Linux）</div></div>
+        <div class="stat"><div class="n">10+</div><div class="l">核心能力模块</div></div>
+        <div class="stat"><div class="n">MIT</div><div class="l">开源协议</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTRO -->
+  <section class="block" id="intro">
+    <div class="wrap">
+      <div class="reveal">
+        <p class="eyebrow">关于 Pi Studio</p>
+        <h2 class="sec-title">为开发者打造的 AI 编码桌面端</h2>
+      </div>
+      <div class="intro-card reveal">
+        <div>
+          <p><strong>Pi Studio</strong> 把 <a href="https://github.com/earendil-works/pi" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;text-underline-offset:3px;">pi coding agent</a> 以 SDK 形式内嵌，在桌面窗口里提供<strong>会话浏览、实时对话、模型配置、Skills 管理与项目文件预览</strong>。所有数据统一存放在 <code style="font-family:inherit;background:var(--accent-soft);padding:1px 6px;border-radius:5px;color:var(--text);">~/.pi-studio/</code>，与 <code style="font-family:inherit;background:var(--accent-soft);padding:1px 6px;border-radius:5px;color:var(--text);">pi</code> 命令行数据隔离，互不影响。</p>
+          <p>无需预装 Node、无需记忆命令行参数 —— 安装即用，让你把注意力放回真正重要的事：写代码。</p>
+        </div>
+        <div class="tech-stack">
+          <div class="tech"><span class="tk" aria-hidden="true">⚡</span><div><b>Electron</b> <span>跨平台桌面壳</span></div></div>
+          <div class="tech"><span class="tk" aria-hidden="true">⚛</span><div><b>Next.js 16 + React 19</b> <span>UI 与 API</span></div></div>
+          <div class="tech"><span class="tk" aria-hidden="true">🧠</span><div><b>pi-coding-agent</b> <span>agent SDK 进程内嵌</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="block" id="features" style="background:var(--bg-soft);">
+    <div class="wrap">
+      <div class="center reveal">
+        <p class="eyebrow">功能亮点</p>
+        <h2 class="sec-title">一切为了更顺手的编码体验</h2>
+        <p class="sec-sub">从会话管理到文件预览，从模型配置到 Skills 生态 —— Pi Studio 把开发者日常需要的工具，收进同一个窗口。</p>
+      </div>
+      <div class="feat-grid" id="featGrid"><!-- features injected for consistency, but hardcoded below for no-JS resilience --></div>
+    </div>
+  </section>
+
+  <!-- VERSION -->
+  <section class="block" id="version">
+    <div class="wrap">
+      <div class="reveal">
+        <p class="eyebrow">版本信息</p>
+        <h2 class="sec-title">最新发布</h2>
+      </div>
+      <div class="ver-grid">
+        <div class="ver-card reveal" id="verCard">
+          <div class="ver-head">
+            <span class="ver-num" id="verNum">v1.0.0</span>
+            <span class="ver-date" id="verDate">2026-08-14</span>
+          </div>
+          <div class="ver-meta">
+            <div class="row"><span class="k">发布通道</span><span class="v" id="verChannel">stable</span></div>
+            <div class="row"><span class="k">Windows</span><span class="v" id="verWin">—</span></div>
+            <div class="row"><span class="k">macOS (Apple Silicon)</span><span class="v" id="verMacA">—</span></div>
+            <div class="row"><span class="k">macOS (Intel)</span><span class="v" id="verMacX">—</span></div>
+            <div class="row"><span class="k">Linux</span><span class="v" id="verLinux">即将推出</span></div>
+          </div>
+        </div>
+        <div class="notes-card reveal" id="notesCard">
+          <h4>发布说明</h4>
+          <div class="notes" id="relNotes"><h3>1.0.0</h3><ul><li>pi-studio 正式版本</li><li>内置在线升级功能</li></ul></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DOWNLOAD -->
+  <section class="block" id="download" style="background:var(--bg-soft);">
+    <div class="wrap">
+      <div class="center reveal">
+        <p class="eyebrow">下载</p>
+        <h2 class="sec-title">选择你的平台</h2>
+        <p class="sec-sub">安装包已内置 Node 运行时，无需任何前置环境。点击按钮即开始下载。</p>
+      </div>
+      <div class="dl-grid" id="dlGrid"><!-- filled by JS; static fallback below --></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap foot-inner">
+      <div class="foot-copy">© <span id="year">2026</span> Pi Studio · 基于 <a href="https://github.com/earendil-works/pi" target="_blank" rel="noopener" style="color:var(--accent)">pi coding agent</a> 构建 · MIT License</div>
+      <nav class="foot-links" aria-label="页脚链接">
+        <a href="#intro">简介</a>
+        <a href="#features">功能</a>
+        <a href="#version">版本</a>
+        <a href="https://codeup.aliyun.com/ibiall/global/pi-studio.git" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </footer>
+
+</main>
+
+<script>
+  // ---------- theme ----------
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem('pi-studio-theme'); } catch (e) {}
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var theme = saved || (prefersDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+    var btn = document.getElementById('themeBtn');
+    var icon = document.getElementById('themeIcon');
+    var sun = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+    var moon = '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
+    function paint() {
+      var t = document.documentElement.getAttribute('data-theme');
+      icon.innerHTML = t === 'dark' ? sun : moon;
+    }
+    paint();
+    btn.addEventListener('click', function () {
+      var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('pi-studio-theme', next); } catch (e) {}
+      paint();
+    });
+  })();
+
+  // ---------- nav shadow ----------
+  var nav = document.getElementById('nav');
+  window.addEventListener('scroll', function () {
+    if (window.scrollY > 8) nav.classList.add('scrolled'); else nav.classList.remove('scrolled');
+  }, { passive: true });
+
+  // ---------- reveal on scroll ----------
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(function (el, i) {
+    el.style.transitionDelay = (Math.min(i, 6) * 60) + 'ms';
+    io.observe(el);
+  });
+
+  // ---------- features (static, JS-independent) ----------
+  var FEATURES = [
+    { ic: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', t: '会话管理', d: '按项目浏览历史会话，无需翻终端历史或 session 路径。' },
+    { ic: '<path d="M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>', t: '计划、目标', d: '先规划步骤、明确目标再动手，过程透明可控、可随时纠偏。' },
+    { ic: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5V14a3 3 0 0 0 3 3h6.5"/>', t: '分叉与分支', d: '从任意消息分叉新会话，或在同一会话内切换分支。' },
+    { ic: '<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 21h8M16 21l1-4"/>', t: '浏览器自动操作', d: '内置浏览器自动打开网页、点击与填表，Agent 直接驱动网页完成任务。' },
+    { ic: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>', t: '文件预览', d: '源码、图片、音频、PDF、DOCX 在一旁即时预览。' },
+    { ic: '<path d="M4 6h10M4 12h10M4 18h6M17 8l3 3-3 3M20 11H14"/>', t: '模型配置', d: '可视化编辑 models.json、API key / OAuth 登录与连通性测试。' },
+    { ic: '<path d="M9 3a2 2 0 0 1 2 2v1h2V5a2 2 0 1 1 4 0v1h1a2 2 0 0 1 2 2v2h-1v2h1v2a2 2 0 0 1-2 2h-1v1a2 2 0 1 1-4 0v-1h-2v1a2 2 0 1 1-4 0v-1H5a2 2 0 0 1-2-2v-2h1v-2H3V8a2 2 0 0 1 2-2h1V5a2 2 0 0 1 2-2z"/>', t: 'Skills 管理', d: '搜索、安装、启用 / 禁用 skills，自由扩展能力边界。' },
+    { ic: '<path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="13" y="7" width="3" height="10"/>', t: '状态可视化', d: '上下文用量、成本、压缩状态一目了然。' }
+  ];
+  (function () {
+    var g = document.getElementById('featGrid');
+    FEATURES.forEach(function (f) {
+      var el = document.createElement('div');
+      el.className = 'feat';
+      el.innerHTML = '<div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + f.ic + '</svg></div><h3>' + f.t + '</h3><p>' + f.d + '</p>';
+      g.appendChild(el);
+    });
+  })();
+
+  // ---------- version + download data ----------
+  var FALLBACK = {
+    version: '1.0.16',
+    pubDate: '2026-08-18T07:15:00.000Z',
+    releaseNotes: '## 1.0.16\n- 新增：侧边栏发现并展示 subagent 子会话，子任务运行记录一目了然\n- 新增：删除会话时级联清理子会话数据，主会话与子会话删除均不再残留孤儿文件\n- 修复：会话关闭时正确广播 shutdown 事件，避免残留运行状态\n- 修复：抑制扩展过期上下文导致的错误弹窗，控制台更干净\n- 兼容 pi-tasks 0.8.0 可选规则\n\n## 1.0.15\n- 修复 Windows 下内置插件（pi-hermes-memory）反复安装失败的问题\n- 内置插件版本改为随 pi-studio 软件版本统一管理，升级软件即自动升级，插件面板不再提供单独更新\n\n## 1.0.14\n- 修复从工作区列表打开项目后，项目胶囊上的 Git 分支按钮不显示的问题\n- 修复设置中插件、提示词面板偶发提示"权限不足"且无法自动恢复的问题\n\n## 1.0.13\n- 新增记忆管理：设置中可视化查看与编辑持久记忆，支持条目增删改、容量监控与一键同步检索索引\n- 新增专家管理，优化添加专家流程，支持提示词只读查看与使用专家快捷回显；全局左边栏新增专家入口，一键直达专家面板\n- 优化性能，启动与首屏加载提速，会话列表及消息流渲染更流畅，接口请求合并与并发调度优化，整体操作更跟手\n- 优化桌面客户端在线升级机制，升级检测与安装更稳健、升级过程更省心',
+    platforms: {
+      'win32-x64': { url: 'http://pi-studio-file.180wx.cn/pi-studio-Setup-1.0.16.exe', size: 0 },
+      'darwin-x64': { url: 'http://pi-studio-file.180wx.cn/pi-studio-1.0.16.dmg', size: 0 },
+      'darwin-arm64': { url: 'http://pi-studio-file.180wx.cn/pi-studio-1.0.16-arm64.dmg', size: 0 },
+      'linux-x64': { url: 'http://pi-studio-file.180wx.cn/pi-studio-1.0.16-x64.AppImage', size: 0 }
+    }
+  };
+
+  function fmtSize(b) {
+    if (!b || b <= 0) return '';
+    if (b >= 1e9) return (b / 1e9).toFixed(2) + ' GB';
+    if (b >= 1e6) return (b / 1e6).toFixed(0) + ' MB';
+    if (b >= 1e3) return (b / 1e3).toFixed(0) + ' KB';
+    return b + ' B';
+  }
+  function fmtDate(s) {
+    try { return new Date(s).toISOString().slice(0, 10); } catch (e) { return s; }
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  function renderNotes(md) {
+    if (!md) return '';
+    var html = '', inList = false;
+    md.split('\n').forEach(function (line) {
+      var m;
+      if ((m = line.match(/^##\s+(.*)$/))) { if (inList) { html += '</ul>'; inList = false; } html += '<h3>' + esc(m[1]) + '</h3>'; }
+      else if ((m = line.match(/^-\s+(.*)$/))) { if (!inList) { html += '<ul>'; inList = true; } html += '<li>' + esc(m[1]) + '</li>'; }
+      else if (line.trim() === '') { /* skip */ }
+      else { if (inList) { html += '</ul>'; inList = false; } html += '<p>' + esc(line) + '</p>'; }
+    });
+    if (inList) html += '</ul>';
+    return html;
+  }
+
+  function render(data) {
+    data = data || FALLBACK;
+    var v = data.version || FALLBACK.version;
+    var p = data.platforms || {};
+    document.getElementById('heroVer').textContent = 'v' + v;
+    document.getElementById('verNum').textContent = 'v' + v;
+    document.getElementById('verDate').textContent = fmtDate(data.pubDate);
+    // Full changelog renders inside the notes card; the card height is pinned
+    // to the left version card and the notes area scrolls when it overflows.
+    document.getElementById('relNotes').innerHTML =
+      renderNotes(String(data.releaseNotes || '').trim()) || '<p>暂无说明</p>';
+
+    // mac/linux installers are not published yet — always render "coming soon"
+    // cards regardless of manifest entries (gen-update-manifest writes
+    // placeholder entries for every declared platform). Flip to true once the
+    // dmg/AppImage are actually uploaded.
+    var MAC_LINUX_READY = false;
+    var win = p['win32-x64'];
+    var macA = MAC_LINUX_READY ? p['darwin-arm64'] : null;
+    var macX = MAC_LINUX_READY ? p['darwin-x64'] : null;
+    var lin = MAC_LINUX_READY ? (p['linux-x64'] || p['linux-arm64']) : null;
+    document.getElementById('verWin').textContent = win ? '✓ 可用' : '—';
+    document.getElementById('verMacA').textContent = macA ? '✓ 可用' : '—';
+    document.getElementById('verMacX').textContent = macX ? '✓ 可用' : '—';
+    document.getElementById('verLinux').textContent = lin ? '✓ 可用' : '即将推出';
+
+    // download cards
+    var grid = document.getElementById('dlGrid');
+    grid.innerHTML = '';
+
+    // Windows
+    if (win) {
+      var wSize = fmtSize(win.size);
+      grid.appendChild(card({
+        cls: 'win', name: 'Windows', tag: 'Windows 10/11 · x64',
+        icon: '<path d="M3 5.5 11 4.5v7H3zM12 4.4 21 3v8.2h-9zM3 13h8v7l-8-1zM12 13.1H21V21l-9-1.2z"/>',
+        btn: '<a class="dl-btn" href="' + win.url + '" download>下载安装包</a>',
+        size: ''
+      }));
+    }
+
+    // macOS (two arch)
+    if (macA || macX) {
+      var cur = macA ? 'arm64' : 'x64';
+      var macCard = card({
+        cls: 'mac', name: 'macOS', tag: 'macOS 11+ · 双架构',
+        icon: '<path d="M16.4 12.7c0-2 1.6-3 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3 0-2.6.8-3.3 2-1.4 2.4-.4 6 1 8 .7 1 1.4 2 2.5 2 1 0 1.3-.6 2.5-.6 1.2 0 1.5.6 2.5.6 1 0 1.7-1 2.4-2 1.4-2 2-4 2-4.1-.1 0-1.6-.6-1.6-2.7zM14.3 5.4c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.7-.4 2.3-1.1z"/>',
+        btn: '<a class="dl-btn" id="macDl" href="#" download>下载 .dmg</a>',
+        size: '',
+        extra: '<div class="arch-pick" role="group" aria-label="选择 macOS 架构">' +
+               (macA ? '<button data-arch="arm64" class="' + (cur === 'arm64' ? 'active' : '') + '">Apple Silicon</button>' : '') +
+               (macX ? '<button data-arch="x64" class="' + (cur === 'x64' ? 'active' : '') + '">Intel</button>' : '') +
+               '</div>'
+      });
+      grid.appendChild(macCard);
+      function setMac(arch) {
+        var t = arch === 'arm64' ? macA : macX;
+        if (!t) return;
+        var s = fmtSize(t.size);
+        var a = macCard.querySelector('#macDl');
+        a.href = t.url;
+        a.innerHTML = '下载 .dmg' + (s ? ' · ' + s : '');
+        macCard.querySelector('.sz').textContent = s ? '约 ' + s : '';
+        macCard.querySelectorAll('.arch-pick button').forEach(function (b) {
+          b.classList.toggle('active', b.getAttribute('data-arch') === arch);
+        });
+      }
+      macCard.querySelectorAll('.arch-pick button').forEach(function (b) {
+        b.addEventListener('click', function () { setMac(b.getAttribute('data-arch')); });
+      });
+      setMac(cur);
+    } else {
+      grid.appendChild(card({
+        cls: 'mac soon', name: 'macOS', tag: 'macOS 11+ · 双架构',
+        icon: '<path d="M16.4 12.7c0-2 1.6-3 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3 0-2.6.8-3.3 2-1.4 2.4-.4 6 1 8 .7 1 1.4 2 2.5 2 1 0 1.3-.6 2.5-.6 1.2 0 1.5.6 2.5.6 1 0 1.7-1 2.4-2 1.4-2 2-4 2-4.1-.1 0-1.6-.6-1.6-2.7zM14.3 5.4c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.7-.4 2.3-1.1z"/>',
+        btn: '<button class="dl-btn disabled" disabled aria-disabled="true">敬请期待</button>',
+        size: '敬请期待',
+        soon: true
+      }));
+    }
+    if (!lin) {
+      grid.appendChild(card({
+        cls: 'linux soon', name: 'Linux', tag: 'AppImage / deb',
+        icon: '<path d="M12 2c-2 0-3 1.8-3 4 0 1.2.4 2 1 2.6C8.5 9.4 7 11 7 14c0 1 .3 2 .8 3-1 .4-2 1-2 2 0 0 2 1 4.5.5C11.2 21 11.6 22 12 22s.8-1 1.7-2.5C16.2 22 18 21 18 21c0-1-1-1.6-2-2 .5-1 .8-2 .8-3 0-3-1.5-4.6-3-5.4.6-.6 1-1.4 1-2.6 0-2.2-1-4-3-4z"/>',
+        btn: '<button class="dl-btn disabled" disabled aria-disabled="true">敬请期待</button>',
+        size: '敬请期待',
+        soon: true
+      }));
+    } else {
+      var lin = p['linux-x64'] || p['linux-arm64'];
+      var lSize = fmtSize(lin.size);
+      grid.appendChild(card({
+        cls: 'linux', name: 'Linux', tag: 'AppImage · x64',
+        icon: '<path d="M12 2c-2 0-3 1.8-3 4 0 1.2.4 2 1 2.6C8.5 9.4 7 11 7 14c0 1 .3 2 .8 3-1 .4-2 1-2 2 0 0 2 1 4.5.5C11.2 21 11.6 22 12 22s.8-1 1.7-2.5C16.2 22 18 21 18 21c0-1-1-1.6-2-2 .5-1 .8-2 .8-3 0-3-1.5-4.6-3-5.4.6-.6 1-1.4 1-2.6 0-2.2-1-4-3-4z"/>',
+        btn: '<a class="dl-btn" href="' + lin.url + '" download>下载 .AppImage' + (lSize ? ' · ' + lSize : '') + '</a>',
+        size: lSize ? '约 ' + lSize : ''
+      }));
+    }
+    syncNotesHeight();
+  }
+
+  function card(o) {
+    var d = document.createElement('div');
+    d.className = 'dl ' + o.cls + (o.soon ? ' soon' : '');
+    d.innerHTML =
+      (o.soon ? '<span class="soon-badge">Coming Soon</span>' : '') +
+      '<div class="top">' +
+        '<div class="plat-ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">' + o.icon + '</svg></div>' +
+        '<div><div class="plat-name">' + o.name + '</div><div class="plat-tag">' + o.tag + '</div></div>' +
+      '</div>' +
+      (o.extra || '') +
+      (o.btn || '') +
+      '<div class="sz">' + (o.size || '') + '</div>';
+    return d;
+  }
+
+  // fetch live data, fall back to embedded
+  fetch('latest.json', { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .then(function (d) { render(d); })
+    .catch(function () { render(FALLBACK); });
+
+  // Pin the notes card height to the left version card; the notes area scrolls
+  // internally. On narrow layouts the grid collapses to one column, so the
+  // pinning only applies on wide screens.
+  function syncNotesHeight() {
+    var n = document.getElementById('notesCard');
+    if (!n) return;
+    if (window.innerWidth <= 880) { n.style.height = ''; return; }
+    var v = document.getElementById('verCard');
+    if (v) n.style.height = v.offsetHeight + 'px';
+  }
+  var resizeT;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(syncNotesHeight, 120);
+  }, { passive: true });
+  // verCard renders inside a .reveal observer — measure after fonts/IMLayout
+  // settle, and again once the observer fires, so the pinned height is exact.
+  window.addEventListener('load', syncNotesHeight);
+  setTimeout(syncNotesHeight, 300);
+  var ioNotes = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { syncNotesHeight(); ioNotes.disconnect(); }
+    });
+  }, { threshold: 0.1 });
+  var verCardEl = document.getElementById('verCard');
+  if (verCardEl) ioNotes.observe(verCardEl);
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>

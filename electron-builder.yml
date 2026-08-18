@@ -1,0 +1,174 @@
+# pi-studio desktop packaging.
+#
+# The Electron shell itself is tiny (desktop/ + package.json, asar-packed).
+# The existing Next.js app is shipped unmodified under resources/pi-web via
+# extraResources, and a pinned standalone Node runtime lives in
+# resources/node-runtime (install it first: npm run desktop:runtime).
+#
+# node_modules is deliberately NOT shipped: it accounts for most of the
+# installer size and makes NSIS extraction painfully slow. Instead the app
+# installs production dependencies on first launch (desktop/main.js detects a
+# missing node_modules and runs desktop/scripts/first-run-install.mjs with the
+# bundled npm from node-runtime, showing progress on loading.html). Only the
+# artifacts that install needs are bundled: package-lock.json (pin versions),
+# patches/ (postinstall patch-package renames pi's .pi → .pi-studio) and
+# scripts/ (postinstall patch-pi-*.mjs). patch-package itself is a runtime
+# dependency (see package.json) so the postinstall works under --omit=dev.
+#
+# Build order: npm run build && npm run desktop:runtime && npm run desktop:dist
+
+appId: com.agegr.pistudio
+productName: pi-studio
+
+directories:
+  output: dist-desktop
+  buildResources: desktop/build
+
+asar: true
+
+# desktop/scripts/first-run-install.mjs is spawned with the standalone
+# node-runtime node.exe (NOT Electron), which cannot read inside app.asar (an
+# Electron-only virtual FS). Unpack the scripts so the child process gets a
+# real file on disk to load. desktop/main.js maps the virtual asar path to the
+# app.asar.unpacked copy when it spawns the installer.
+asarUnpack:
+  - "desktop/scripts/**"
+
+# Electron app files only; the pi-studio server app goes through extraResources.
+# Explicit !node_modules is required: electron-builder's automatic dependency
+# tracing scans require() calls in desktop/main.js and pulls in the project's
+# node_modules regardless of the include-only filter (electron-builder v26+).
+# Production deps are NOT shipped at all — they are installed on first launch
+# (see header comment + desktop/scripts/first-run-install.mjs).
+files:
+  - "package.json"
+  - "desktop/**/*"
+  - "!desktop/runtime/**"
+  - "!node_modules/**"
+
+extraResources:
+  # Next.js production output (cache excluded, same filter as the npm files field)
+  - from: .next
+    to: pi-web/.next
+    filter:
+      - "**/*"
+      - "!cache/**"
+      - "!dev/**"
+      - "!**/*.js.map"
+  - from: public
+    to: pi-web/public
+  # Bundled built-in skills seeded into ~/.pi-studio/skills/builtin on boot
+  # (lib/builtin-skills.ts resolves them from process.cwd()/resources).
+  - from: resources/builtin-skills
+    to: pi-web/resources/builtin-skills
+  # Bundled default global AGENTS.md seeded into ~/.pi-studio/AGENTS.md on boot
+  # (lib/builtin-agents.ts reads process.cwd()/resources/builtin-agents.md).
+  # filter is required (file source): without it electron-builder emits an
+  # excludePattern equal to the filename and silently drops the file.
+  - from: resources/builtin-agents.md
+    to: pi-web/resources/builtin-agents.md
+    filter:
+      - "**"
+  # Bundled default hermes-memory config seeded into ~/.pi-studio/
+  # hermes-memory-config.json on boot
+  # (lib/builtin-hermes-memory-config.ts reads process.cwd()/resources/
+  # hermes-memory-config.json). Same filter workaround as builtin-agents.md.
+  - from: resources/hermes-memory-config.json
+    to: pi-web/resources/hermes-memory-config.json
+    filter:
+      - "**"
+  # Bundled update-server config baked into the installer via extraResources.
+  # Sourced from resources/update-config.local.json (gitignored, holds the real
+  # host) so a distributed build points its auto-updater at the operator's own
+  # server without the URL being hardcoded in source. Runtime: updater.js reads
+  # resources/pi-web/resources/update-config.json (process.resourcesPath).
+  - from: resources/update-config.local.json
+    to: pi-web/resources/update-config.json
+    filter:
+      - "**"
+  - from: bin
+    to: pi-web/bin
+  - from: next.config.ts
+    to: pi-web/next.config.ts
+    # same excludePattern workaround as package.json above
+    filter:
+      - "**"
+  - from: package.json
+    to: pi-web/package.json
+    # filter is required to prevent electron-builder from auto-excluding the
+    # root package.json from the asar archive. Without it, computeParsedPatterns
+    # emits an excludePattern "package.json" (because from is a file and patterns
+    # is empty), which silently drops the asar-level package.json and fails the
+    # sanity check ("package.json was not found in this archive"). Adding any
+    # non-empty filter makes the excludePattern "package.json/**" instead, which
+    # only matches sub-paths. copyFiles still copies the file directly — filters
+    # are not applied to file-type sources.
+    filter:
+      - "**"
+  # First-run dependency installation assets (node_modules itself is NOT
+  # shipped — see header comment). package-lock.json pins versions so the
+  # on-device npm install is reproducible; patches/ + scripts/ are required by
+  # pi-web's postinstall (patch-package + idempotent patch-pi-*.mjs).
+  - from: package-lock.json
+    to: pi-web/package-lock.json
+    filter:
+      - "**"
+  - from: patches
+    to: pi-web/patches
+  - from: scripts
+    to: pi-web/scripts
+  # Standalone Node runtime used to spawn bin/pi-web.js (see desktop/server.js)
+  - from: desktop/runtime/node-runtime
+    to: node-runtime
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: public/icons/icon-512.png
+
+nsis:
+  # Assisted mode with directory choice for manual first installs (internal
+  # users pick their own location, e.g. D:\). In-app updates spawn the same
+  # installer WITHOUT /S: on update the wizard auto-skips the install-mode
+  # and directory pages (skipPageIfUpdated + existing per-user install), so
+  # it doubles as the update progress UI, and its finish page ("运行
+  # pi-studio" pre-checked) relaunches the new build with --updated — no
+  # external updater process is shipped. The old-uninstaller pass is
+  # disabled by scripts/patch-app-builder-nsis.mjs (extract-overwrite
+  # updates), so the historical uninstaller pain (retry dialogs,
+  # atomic-rename locks, exit code 2) cannot recur in either mode.
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  # customCheckAppRunning in this script replaces the stock running-app
+  # check (which scans EVERY process under $INSTDIR incl. node-runtime
+  # node.exe and traps updates in a retry dialog) with a silent force-close.
+  include: desktop/build/installer.nsh
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+mac:
+  # Build both Intel (x64) and Apple Silicon (arm64) in a single run.
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  category: public.app-category.developer-tools
+  icon: public/icons/icon-512.png
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
+  icon: public/icons/icon-512.png
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+# Auto-update publishing (GitHub Releases) is wired in phase 3; keep manual.
+publish: null

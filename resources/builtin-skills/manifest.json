@@ -1,0 +1,36 @@
+{
+  "skills": [
+    {
+      "name": "docx",
+      "hash": "ffd82aa6a49674c09914941639e5945694e19c67e43d8459704391e13b4ace25"
+    },
+    {
+      "name": "find-skills",
+      "hash": "c1d9628984991d7ed59ab3a7bf6a4dad3d731ef68c71f409f64a0ca258e8028e"
+    },
+    {
+      "name": "frontend-design",
+      "hash": "35c43b9d10c2388dbb228047ad028c989a14033750812125f351c85aa42c7a4a"
+    },
+    {
+      "name": "grill-me",
+      "hash": "f344fa8457e4ee2e69982f2000b6f442502d919f772ace67f52d699f1f772ad3"
+    },
+    {
+      "name": "pdf",
+      "hash": "067401220db5745f719ff8c048d545d5edc8545e809668a3a6f9e2892fa51d48"
+    },
+    {
+      "name": "pptx",
+      "hash": "d11d1c5e9f8cf7cdfebeda2c1ef73299bee612e2d16eff90513b7aa2f1bc4d31"
+    },
+    {
+      "name": "skill-creator",
+      "hash": "e030e7685e26283b4a76f5202aa3ae8516fb41dde799be5ae8ea6393ec009fe9"
+    },
+    {
+      "name": "xlsx",
+      "hash": "111e06521941d60feea6c160d9f67a0b9b95a383d3db0b4c95e65937eb12fb5a"
+    }
+  ]
+}
